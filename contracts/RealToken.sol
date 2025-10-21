@@ -1,19 +1,21 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "./interface/IERC2612.sol";
+import "./interface/IERC3009.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/Nonces.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Burnable.sol";
 
-contract RealToken is ERC20, ERC20Burnable, EIP712, Nonces
+contract RealToken is ERC20Burnable, EIP712, Nonces, IERC2612, IERC3009
 {
-    constructor() ERC20("Real", "REAL") EIP712("Real", "1") { 
+    constructor() ERC20("Real", "ASSET") EIP712("Real", "1") { 
         _mint(msg.sender, 1_000_000_000 * 10**18);
     }
 
-    error InvalidSignature();
+    error RealTokenInvalidSignature();
 
     function decimals() public pure override returns (uint8) {
         return 18;
@@ -24,13 +26,12 @@ contract RealToken is ERC20, ERC20Burnable, EIP712, Nonces
     }
 
     function _validateSignature(address signer, bytes32 encodeData, bytes memory signature) internal view {
-        require(SignatureChecker.isValidSignatureNow(signer, MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR(), encodeData), signature), InvalidSignature());
+        require(SignatureChecker.isValidSignatureNow(signer, MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR(), encodeData), signature), RealTokenInvalidSignature());
     }
 
     //ERC 2612 implementation
     // keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
     bytes32 public constant PERMIT_TYPEHASH = 0x6e71edae12b1b97f4d1f60370fef10105fa2faae0126114a169c64845d6126c9;
-    error ERC2612ExpiredSignature(uint256 deadline);
 
     function _permit(address owner, address spender, uint256 value, uint256 deadline, bytes memory signature) internal {
         if (block.timestamp > deadline) {
@@ -51,19 +52,12 @@ contract RealToken is ERC20, ERC20Burnable, EIP712, Nonces
     }
 
     //ERC 3009 implementation
-    event AuthorizationUsed(address indexed authorizer, bytes32 indexed nonce);
-    event AuthorizationCanceled(address indexed authorizer, bytes32 indexed nonce);
     // keccak256("TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)")
     bytes32 public constant TRANSFER_WITH_AUTHORIZATION_TYPEHASH = 0x7c7c6cdb67a18743f49ec6fa9b35f50d52ed05cbed4cc592e13b44501c1a2267;
     // keccak256("ReceiveWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)")
     bytes32 public constant RECEIVE_WITH_AUTHORIZATION_TYPEHASH = 0xd099cc98ef71107a616c4f0f941f04c322d8e254fe26b3c6668db87aae413de8;
     // keccak256("CancelAuthorization(address authorizer,bytes32 nonce)")
     bytes32 public constant CANCEL_AUTHORIZATION_TYPEHASH = 0x158b0a9edf7a828aad02f63cd515c68ef2f50ba807396f6d12842833a1597429;
-
-    error ERC3009ExpiredAuthorization(uint256 validBefore);
-    error ERC3009NotYetValidAuthorization(uint256 validAfter);
-    error ERC3009UsedOrCanceledAuthorization();
-    error ERC3009CallerMustBeThePayee();
     mapping(address => mapping(bytes32 => bool)) private _authorizationStates;
 
     function authorizationState(address authorizer, bytes32 nonce) external view returns (bool) {

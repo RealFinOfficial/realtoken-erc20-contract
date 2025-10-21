@@ -162,7 +162,7 @@
 			},
 			{
 				"inputs": [],
-				"name": "InvalidSignature",
+				"name": "RealTokenInvalidSignature",
 				"type": "error"
 			},
 			{
@@ -1028,6 +1028,16 @@
 				"approve(address,uint256)": {
 					"details": "See {IERC20-approve}. NOTE: If `value` is the maximum `uint256`, the allowance is not updated on `transferFrom`. This is semantically equivalent to an infinite approval. Requirements: - `spender` cannot be the zero address."
 				},
+				"authorizationState(address,bytes32)": {
+					"details": "Nonces are randomly generated 32-byte data unique to the authorizer's address",
+					"params": {
+						"authorizer": "Authorizer's address",
+						"nonce": "Nonce of the authorization"
+					},
+					"returns": {
+						"_0": "True if the nonce is used"
+					}
+				},
 				"balanceOf(address)": {
 					"details": "Returns the value of tokens owned by `account`."
 				},
@@ -1036,6 +1046,15 @@
 				},
 				"burnFrom(address,uint256)": {
 					"details": "Destroys a `value` amount of tokens from `account`, deducting from the caller's allowance. See {ERC20-_burn} and {ERC20-allowance}. Requirements: - the caller must have allowance for ``accounts``'s tokens of at least `value`."
+				},
+				"cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)": {
+					"params": {
+						"authorizer": "Authorizer's address",
+						"nonce": "Nonce of the authorization",
+						"r": "r of the signature",
+						"s": "s of the signature",
+						"v": "v of the signature"
+					}
 				},
 				"decimals()": {
 					"details": "Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}."
@@ -1049,6 +1068,20 @@
 				"nonces(address)": {
 					"details": "Returns the next unused nonce for an address."
 				},
+				"receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": {
+					"details": "This has an additional check to ensure that the payee's address matches the caller of this function to prevent front-running attacks. (See security considerations)",
+					"params": {
+						"from": "Payer's address (Authorizer)",
+						"nonce": "Unique nonce",
+						"r": "r of the signature",
+						"s": "s of the signature",
+						"to": "Payee's address",
+						"v": "v of the signature",
+						"validAfter": "The time after which this is valid (unix time)",
+						"validBefore": "The time before which this is valid (unix time)",
+						"value": "Amount to be transferred"
+					}
+				},
 				"symbol()": {
 					"details": "Returns the symbol of the token, usually a shorter version of the name."
 				},
@@ -1060,13 +1093,39 @@
 				},
 				"transferFrom(address,address,uint256)": {
 					"details": "See {IERC20-transferFrom}. Skips emitting an {Approval} event indicating an allowance update. This is not required by the ERC. See {xref-ERC20-_approve-address-address-uint256-bool-}[_approve]. NOTE: Does not update the allowance if the current allowance is the maximum `uint256`. Requirements: - `from` and `to` cannot be the zero address. - `from` must have a balance of at least `value`. - the caller must have allowance for ``from``'s tokens of at least `value`."
+				},
+				"transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": {
+					"params": {
+						"from": "Payer's address (Authorizer)",
+						"nonce": "Unique nonce",
+						"r": "r of the signature",
+						"s": "s of the signature",
+						"to": "Payee's address",
+						"v": "v of the signature",
+						"validAfter": "The time after which this is valid (unix time)",
+						"validBefore": "The time before which this is valid (unix time)",
+						"value": "Amount to be transferred"
+					}
 				}
 			},
 			"version": 1
 		},
 		"userdoc": {
 			"kind": "user",
-			"methods": {},
+			"methods": {
+				"authorizationState(address,bytes32)": {
+					"notice": "Returns the state of an authorization"
+				},
+				"cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)": {
+					"notice": "Attempt to cancel an authorization"
+				},
+				"receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": {
+					"notice": "Receive a transfer with a signed authorization from the payer"
+				},
+				"transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": {
+					"notice": "Execute a transfer with a signed authorization"
+				}
+			},
 			"version": 1
 		}
 	},
@@ -1080,7 +1139,7 @@
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": false,
+			"enabled": true,
 			"runs": 200
 		},
 		"remappings": []
@@ -1263,11 +1322,27 @@
 			]
 		},
 		"contracts/RealToken.sol": {
-			"keccak256": "0x8f206fc3ff7a9a8ac9eb5f74bd97c2a69fd179fe336d66b8988ef156628c2f6d",
+			"keccak256": "0x6b75aec1278be0ac5ffb1364ef20b1836a9fa25809e6a52a2bd087e556a8de73",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://a7e5407e1ad8c966e543ed1237d63f5ef79676a43a80ff001e10d5b49fd8581e",
-				"dweb:/ipfs/QmV2opZtH7LnTVgX8scLB36q4bDx78EX2z9SUFBPemE2pf"
+				"bzz-raw://f35cfff70055ad34371931d120f385b4f9a68266ba4ab36ba21c8d98f01fee52",
+				"dweb:/ipfs/QmQyrqQjcBoRFeUX62D5oZno3Y5Yo4JaYjLbdQ1x6sgC5T"
+			]
+		},
+		"contracts/interface/IERC2612.sol": {
+			"keccak256": "0x252127ef342fb89adf843d8244f769219859eb3cf1b3330883d6ee4d660f0217",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://672849ef83538c81dd0e2757d9fe5f9ade7610c31547e86b5a467106ac444f2e",
+				"dweb:/ipfs/QmSeAxGV4UCa1N5ZYbpbuf54ihmpFHxmbvMGHQUeXFh9eH"
+			]
+		},
+		"contracts/interface/IERC3009.sol": {
+			"keccak256": "0x89839b915e4d4f58716bb6ed65fff26b4e5503db6c0931f648b6e64f81857ef2",
+			"license": "MIT",
+			"urls": [
+				"bzz-raw://04638219478098b5442c6c3eb041a29c32f43991a76275df564a43d39ed6e03e",
+				"dweb:/ipfs/QmTzC5vrmBvLNaCuTmkPojcuSvaEcP63iVMyv9AyVsQfr1"
 			]
 		}
 	},
