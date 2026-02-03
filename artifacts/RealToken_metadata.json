@@ -1,6 +1,6 @@
 {
 	"compiler": {
-		"version": "0.8.30+commit.73712a01"
+		"version": "0.8.33+commit.64118f21"
 	},
 	"language": "Solidity",
 	"output": {
@@ -950,6 +950,7 @@
 			}
 		],
 		"devdoc": {
+			"details": "ERC-20 token with ERC-2612 permit and ERC-3009 transfer authorization support. Extends OpenZeppelin's {ERC20Burnable}, {EIP712}, and {Nonces} contracts, and implements {IERC2612} and {IERC3009} interfaces. Supports both EOA (ECDSA) and smart contract (ERC-1271) signature verification via {SignatureChecker}.",
 			"errors": {
 				"ERC20InsufficientAllowance(address,uint256,uint256)": [
 					{
@@ -1003,15 +1004,59 @@
 						}
 					}
 				],
+				"ERC2612ExpiredSignature(uint256)": [
+					{
+						"details": "The permit signature has expired."
+					}
+				],
+				"ERC3009CallerMustBeThePayee()": [
+					{
+						"details": "The caller is not the payee specified in the authorization."
+					}
+				],
+				"ERC3009ExpiredAuthorization(uint256)": [
+					{
+						"details": "The authorization has expired."
+					}
+				],
+				"ERC3009NotYetValidAuthorization(uint256)": [
+					{
+						"details": "The authorization is not yet valid."
+					}
+				],
+				"ERC3009UsedOrCanceledAuthorization()": [
+					{
+						"details": "The authorization has already been used or canceled."
+					}
+				],
 				"InvalidAccountNonce(address,uint256)": [
 					{
 						"details": "The nonce used for an `account` is not the expected current nonce."
+					}
+				],
+				"RealTokenInvalidSignature()": [
+					{
+						"details": "The signature provided is not valid for the given signer and data."
 					}
 				]
 			},
 			"events": {
 				"Approval(address,address,uint256)": {
 					"details": "Emitted when the allowance of a `spender` for an `owner` is set by a call to {approve}. `value` is the new allowance."
+				},
+				"AuthorizationCanceled(address,bytes32)": {
+					"details": "Emitted when an authorization is canceled.",
+					"params": {
+						"authorizer": "The address of the authorizer",
+						"nonce": "The nonce of the canceled authorization"
+					}
+				},
+				"AuthorizationUsed(address,bytes32)": {
+					"details": "Emitted when an authorization is used.",
+					"params": {
+						"authorizer": "The address of the authorizer",
+						"nonce": "The nonce of the used authorization"
+					}
 				},
 				"EIP712DomainChanged()": {
 					"details": "MAY be emitted to signal that the domain could have changed."
@@ -1022,6 +1067,12 @@
 			},
 			"kind": "dev",
 			"methods": {
+				"DOMAIN_SEPARATOR()": {
+					"details": "Returns the EIP-712 domain separator for the current chain.",
+					"returns": {
+						"_0": "The domain separator as a bytes32 hash."
+					}
+				},
 				"allowance(address,address)": {
 					"details": "Returns the remaining number of tokens that `spender` will be allowed to spend on behalf of `owner` through {transferFrom}. This is zero by default. This value changes when {approve} or {transferFrom} are called."
 				},
@@ -1029,14 +1080,7 @@
 					"details": "See {IERC20-approve}. NOTE: If `value` is the maximum `uint256`, the allowance is not updated on `transferFrom`. This is semantically equivalent to an infinite approval. Requirements: - `spender` cannot be the zero address."
 				},
 				"authorizationState(address,bytes32)": {
-					"details": "Nonces are randomly generated 32-byte data unique to the authorizer's address",
-					"params": {
-						"authorizer": "Authorizer's address",
-						"nonce": "Nonce of the authorization"
-					},
-					"returns": {
-						"_0": "True if the nonce is used"
-					}
+					"details": "See {IERC3009-authorizationState}."
 				},
 				"balanceOf(address)": {
 					"details": "Returns the value of tokens owned by `account`."
@@ -1047,17 +1091,20 @@
 				"burnFrom(address,uint256)": {
 					"details": "Destroys a `value` amount of tokens from `account`, deducting from the caller's allowance. See {ERC20-_burn} and {ERC20-allowance}. Requirements: - the caller must have allowance for ``accounts``'s tokens of at least `value`."
 				},
+				"cancelAuthorization(address,bytes32,bytes)": {
+					"details": "See {IERC3009-cancelAuthorization}."
+				},
 				"cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)": {
-					"params": {
-						"authorizer": "Authorizer's address",
-						"nonce": "Nonce of the authorization",
-						"r": "r of the signature",
-						"s": "s of the signature",
-						"v": "v of the signature"
-					}
+					"details": "See {IERC3009-cancelAuthorization}. Accepts the `v`, `r`, and `s` signature components and packs them into bytes."
+				},
+				"constructor": {
+					"details": "Sets the token name to \"REAL\", symbol to \"ASSET\", and EIP-712 domain name to \"REAL\" with version \"1\". Mints 1,000,000,000 tokens (with 18 decimals) to the deployer."
 				},
 				"decimals()": {
-					"details": "Returns the number of decimals used to get its user representation. For example, if `decimals` equals `2`, a balance of `505` tokens should be displayed to a user as `5.05` (`505 / 10 ** 2`). Tokens usually opt for a value of 18, imitating the relationship between Ether and Wei. This is the default value returned by this function, unless it's overridden. NOTE: This information is only used for _display_ purposes: it in no way affects any of the arithmetic of the contract, including {IERC20-balanceOf} and {IERC20-transfer}."
+					"details": "Returns the number of decimals used to get the token's user representation.",
+					"returns": {
+						"_0": "The number of decimals (18)."
+					}
 				},
 				"eip712Domain()": {
 					"details": "returns the fields and values that describe the domain separator used by this contract for EIP-712 signature."
@@ -1068,19 +1115,17 @@
 				"nonces(address)": {
 					"details": "Returns the next unused nonce for an address."
 				},
+				"permit(address,address,uint256,uint256,bytes)": {
+					"details": "See {IERC2612-permit}."
+				},
+				"permit(address,address,uint256,uint256,uint8,bytes32,bytes32)": {
+					"details": "See {IERC2612-permit}. Accepts the `v`, `r`, and `s` signature components and packs them into bytes."
+				},
+				"receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)": {
+					"details": "See {IERC3009-receiveWithAuthorization}."
+				},
 				"receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": {
-					"details": "This has an additional check to ensure that the payee's address matches the caller of this function to prevent front-running attacks. (See security considerations)",
-					"params": {
-						"from": "Payer's address (Authorizer)",
-						"nonce": "Unique nonce",
-						"r": "r of the signature",
-						"s": "s of the signature",
-						"to": "Payee's address",
-						"v": "v of the signature",
-						"validAfter": "The time after which this is valid (unix time)",
-						"validBefore": "The time before which this is valid (unix time)",
-						"value": "Amount to be transferred"
-					}
+					"details": "See {IERC3009-receiveWithAuthorization}. Accepts the `v`, `r`, and `s` signature components and packs them into bytes."
 				},
 				"symbol()": {
 					"details": "Returns the symbol of the token, usually a shorter version of the name."
@@ -1094,38 +1139,35 @@
 				"transferFrom(address,address,uint256)": {
 					"details": "See {IERC20-transferFrom}. Skips emitting an {Approval} event indicating an allowance update. This is not required by the ERC. See {xref-ERC20-_approve-address-address-uint256-bool-}[_approve]. NOTE: Does not update the allowance if the current allowance is the maximum `uint256`. Requirements: - `from` and `to` cannot be the zero address. - `from` must have a balance of at least `value`. - the caller must have allowance for ``from``'s tokens of at least `value`."
 				},
+				"transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,bytes)": {
+					"details": "See {IERC3009-transferWithAuthorization}."
+				},
 				"transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": {
-					"params": {
-						"from": "Payer's address (Authorizer)",
-						"nonce": "Unique nonce",
-						"r": "r of the signature",
-						"s": "s of the signature",
-						"to": "Payee's address",
-						"v": "v of the signature",
-						"validAfter": "The time after which this is valid (unix time)",
-						"validBefore": "The time before which this is valid (unix time)",
-						"value": "Amount to be transferred"
-					}
+					"details": "See {IERC3009-transferWithAuthorization}. Accepts the `v`, `r`, and `s` signature components and packs them into bytes."
+				}
+			},
+			"stateVariables": {
+				"CANCEL_AUTHORIZATION_TYPEHASH": {
+					"details": "keccak256(\"CancelAuthorization(address authorizer,bytes32 nonce)\")"
+				},
+				"PERMIT_TYPEHASH": {
+					"details": "keccak256(\"Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)\")"
+				},
+				"RECEIVE_WITH_AUTHORIZATION_TYPEHASH": {
+					"details": "keccak256(\"ReceiveWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)\")"
+				},
+				"TRANSFER_WITH_AUTHORIZATION_TYPEHASH": {
+					"details": "keccak256(\"TransferWithAuthorization(address from,address to,uint256 value,uint256 validAfter,uint256 validBefore,bytes32 nonce)\")"
+				},
+				"_authorizationStates": {
+					"details": "Mapping of authorizer address => nonce => authorization state (true if used or canceled)."
 				}
 			},
 			"version": 1
 		},
 		"userdoc": {
 			"kind": "user",
-			"methods": {
-				"authorizationState(address,bytes32)": {
-					"notice": "Returns the state of an authorization"
-				},
-				"cancelAuthorization(address,bytes32,uint8,bytes32,bytes32)": {
-					"notice": "Attempt to cancel an authorization"
-				},
-				"receiveWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": {
-					"notice": "Receive a transfer with a signed authorization from the payer"
-				},
-				"transferWithAuthorization(address,address,uint256,uint256,uint256,bytes32,uint8,bytes32,bytes32)": {
-					"notice": "Execute a transfer with a signed authorization"
-				}
-			},
+			"methods": {},
 			"version": 1
 		}
 	},
@@ -1133,13 +1175,13 @@
 		"compilationTarget": {
 			"contracts/RealToken.sol": "RealToken"
 		},
-		"evmVersion": "prague",
+		"evmVersion": "osaka",
 		"libraries": {},
 		"metadata": {
 			"bytecodeHash": "ipfs"
 		},
 		"optimizer": {
-			"enabled": true,
+			"enabled": false,
 			"runs": 200
 		},
 		"remappings": []
@@ -1322,27 +1364,27 @@
 			]
 		},
 		"contracts/RealToken.sol": {
-			"keccak256": "0x6b75aec1278be0ac5ffb1364ef20b1836a9fa25809e6a52a2bd087e556a8de73",
+			"keccak256": "0xa57c5f3a25ba96da3e63d9f384df9fb7fcd470553d2a294d7dc3293f4fa14004",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://f35cfff70055ad34371931d120f385b4f9a68266ba4ab36ba21c8d98f01fee52",
-				"dweb:/ipfs/QmQyrqQjcBoRFeUX62D5oZno3Y5Yo4JaYjLbdQ1x6sgC5T"
+				"bzz-raw://b1773fd4cc6a3e84740b9e01de8437dfa802b5e8c727bd06c5ae41e1cd7a746f",
+				"dweb:/ipfs/QmWPUM1BjguT7tBLy3ShmtSuhb3uAPMpXhaFt1kzbNHzs4"
 			]
 		},
 		"contracts/interface/IERC2612.sol": {
-			"keccak256": "0x252127ef342fb89adf843d8244f769219859eb3cf1b3330883d6ee4d660f0217",
+			"keccak256": "0x75834a768d1f7e588b5578747860657bc405fa2dc28d2dd0d305937464f4c8f0",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://672849ef83538c81dd0e2757d9fe5f9ade7610c31547e86b5a467106ac444f2e",
-				"dweb:/ipfs/QmSeAxGV4UCa1N5ZYbpbuf54ihmpFHxmbvMGHQUeXFh9eH"
+				"bzz-raw://dbc7df9acb9405133fda7a441e4669a284a5460752c21ceed27863a57738e77b",
+				"dweb:/ipfs/QmNow1RJjyzhHvZw4qi7AB1UGJzugtksRqgwTZP77MZf6U"
 			]
 		},
 		"contracts/interface/IERC3009.sol": {
-			"keccak256": "0x89839b915e4d4f58716bb6ed65fff26b4e5503db6c0931f648b6e64f81857ef2",
+			"keccak256": "0x2b5bc3411aba72264e5a84f9a5c3061c4e938d1985b896af4940cc04340baafc",
 			"license": "MIT",
 			"urls": [
-				"bzz-raw://04638219478098b5442c6c3eb041a29c32f43991a76275df564a43d39ed6e03e",
-				"dweb:/ipfs/QmTzC5vrmBvLNaCuTmkPojcuSvaEcP63iVMyv9AyVsQfr1"
+				"bzz-raw://dbe9d3c04529c86fd25a79410c260503b6c0c45648d1ce7f09a457acdabc196d",
+				"dweb:/ipfs/QmSpyTKUEE6gsSnkTCHjaVFH9TcEfX11ayb2EmeP82mFwc"
 			]
 		}
 	},
