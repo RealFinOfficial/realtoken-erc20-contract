@@ -3,6 +3,7 @@ pragma solidity ^0.8.20;
 
 import "./interface/IERC2612.sol";
 import "./interface/IERC3009.sol";
+import "@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol";
 import "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
 import "@openzeppelin/contracts/utils/cryptography/EIP712.sol";
 import "@openzeppelin/contracts/utils/Nonces.sol";
