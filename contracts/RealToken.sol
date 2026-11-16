@@ -65,6 +65,14 @@ contract RealToken is ERC20Burnable, EIP712, Nonces, IERC2612, IERC3009
         require(SignatureChecker.isValidSignatureNow(signer, MessageHashUtils.toTypedDataHash(DOMAIN_SEPARATOR(), encodeData), signature), RealTokenInvalidSignature());
     }
 
+    /**
+     * @dev Restores pre-OZ-v5 behaviour: {transferFrom} and {burnFrom} emit an {IERC20-Approval} event
+     * with the remaining allowance whenever a finite allowance is spent.
+     */
+    function _approve(address owner, address spender, uint256 value, bool) internal override {
+        super._approve(owner, spender, value, true);
+    }
+
     // ============ ERC-2612 Implementation ============
 
     /// @dev keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)")
